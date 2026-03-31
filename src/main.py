@@ -1,0 +1,4 @@
+from marketing_persona_counsel.cli import app
+
+if __name__ == "__main__":
+    app()
