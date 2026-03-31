@@ -1,5 +1,5 @@
 from local_first_common.personas import load_obsidian_persona
-from marketing_persona_counsel.ingestion import load_markdown_content
+from local_first_common.ingestion import ingest_file
 from marketing_persona_counsel.models import PersonaEvaluation
 
 
@@ -29,7 +29,7 @@ title: My Cool Post
 This is the content.
 """, encoding="utf-8")
     
-    title, content = load_markdown_content(post_file)
+    title, content = ingest_file(post_file)
     assert title == "My Cool Post"
     assert content.strip() == "This is the content."
 

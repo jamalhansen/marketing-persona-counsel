@@ -1,6 +1,5 @@
 import asyncio
 import os
-from pathlib import Path
 from typing import Annotated, Optional
 
 import typer
@@ -9,14 +8,14 @@ from local_first_common.cli import (
     no_llm_option,
     resolve_dry_run,
 )
-from local_first_common.tracking import register_tool, timed_run
+from local_first_common.tracking import register_tool, track_llm_run
+from local_first_common.ingestion import ingest_any
+from local_first_common.personas import list_vault_personas
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
 from local_first_common.pydantic_ai_utils import build_model, PROVIDER_DEFAULTS, VALID_PROVIDERS
-from local_first_common.personas import list_obsidian_personas
-from .ingestion import fetch_url_content, load_markdown_content
 from .orchestrator import run_council
 from .persistence import save_council_result
 
@@ -57,7 +56,7 @@ def main(
     
     # Handle --list-personas
     if list_personas:
-        personas = list_obsidian_personas()
+        personas = list_vault_personas("brand")
         if not personas:
             err_console.print("[yellow]No marketing personas found. Check OBSIDIAN_VAULT_PATH/personas/brand[/yellow]")
             raise typer.Exit(1)
@@ -74,7 +73,7 @@ def main(
     dry_run = resolve_dry_run(dry_run, no_llm)
     
     # 1. Load Personas
-    personas = list_obsidian_personas()
+    personas = list_vault_personas("brand")
     if not personas:
         err_console.print("[red]Error:[/red] No marketing personas found in OBSIDIAN_VAULT_PATH/personas/brand")
         raise typer.Exit(1)
@@ -84,14 +83,7 @@ def main(
 
     # 2. Ingest Content
     try:
-        if source.startswith("http"):
-            title, content = fetch_url_content(source)
-        else:
-            path = Path(source)
-            if not path.exists():
-                err_console.print(f"[red]Error:[/red] File not found: {source}")
-                raise typer.Exit(1)
-            title, content = load_markdown_content(path)
+        title, content = ingest_any(source, tool=_TOOL)
     except Exception as e:
         err_console.print(f"[red]Failed to ingest content:[/red] {e}")
         raise typer.Exit(1)
@@ -111,11 +103,11 @@ def main(
     model_name = actual_model or PROVIDER_DEFAULTS.get(actual_provider, "unknown")
 
     # 4. Run Council
-    with timed_run("marketing-persona-counsel", f"{provider}:{model_name}", source_location=source) as _run:
+    with track_llm_run("marketing-persona-counsel", f"{provider}:{model_name}", source_location=source) as run:
         result = asyncio.run(run_council(
             personas, content, title, source, pai_model, concurrency
         ))
-        _run.item_count = len(personas)
+        run.track(result, item_count=len(personas))
 
     # 5. Display Results
     table = Table(title=f"Council Evaluation: {title}")
