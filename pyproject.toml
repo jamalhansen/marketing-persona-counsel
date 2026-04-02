@@ -37,4 +37,4 @@ build-backend = "hatchling.build"
 packages = ["src/marketing_persona_counsel"]
 
 [project.scripts]
-marketing-persona-counsel = "marketing_persona_counsel.logic:app"
+marketing-persona-counsel = "marketing_persona_counsel.cli:app"
