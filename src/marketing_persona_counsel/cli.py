@@ -1,5 +1,6 @@
 import asyncio
 import os
+from pathlib import Path
 from typing import Annotated, Optional
 
 import typer
@@ -10,7 +11,7 @@ from local_first_common.cli import (
 )
 from local_first_common.tracking import register_tool, track_llm_run
 from local_first_common.ingestion import ingest_any
-from local_first_common.personas import list_vault_personas
+from local_first_common.personas import list_personas
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -43,6 +44,10 @@ def main(
         Optional[str],
         typer.Option("--model", "-m", help="Override the provider's default model."),
     ] = None,
+    vault: Annotated[
+        Optional[Path],
+        typer.Option("--vault", help="Override the Obsidian vault path."),
+    ] = None,
     dry_run: bool = dry_run_option(),
     no_llm: bool = no_llm_option(),
     concurrency: Annotated[
@@ -50,15 +55,15 @@ def main(
         typer.Option("--concurrency", "-c", help="Max parallel API calls."),
     ] = 3,
     verbose: bool = typer.Option(False, "--verbose", "-v"),
-    list_personas: bool = typer.Option(False, "--list-personas", help="List available marketing personas."),
+    list_personas_flag: bool = typer.Option(False, "--list-personas", help="List available marketing personas."),
 ) -> None:
     """Evaluate a blog post using marketing persona agents."""
     
     # Handle --list-personas
-    if list_personas:
-        personas = list_vault_personas("brand")
+    if list_personas_flag:
+        personas = list_personas("Brand", vault_path=vault)
         if not personas:
-            err_console.print("[yellow]No marketing personas found. Check OBSIDIAN_VAULT_PATH/personas/brand[/yellow]")
+            err_console.print("[yellow]No marketing personas found. Check OBSIDIAN_VAULT_PATH/personas/Brand[/yellow]")
             raise typer.Exit(1)
         console.print("\n[bold]Available Marketing Personas:[/bold]\n")
         for p in personas:
@@ -73,9 +78,9 @@ def main(
     dry_run = resolve_dry_run(dry_run, no_llm)
     
     # 1. Load Personas
-    personas = list_vault_personas("brand")
+    personas = list_personas("Brand", vault_path=vault)
     if not personas:
-        err_console.print("[red]Error:[/red] No marketing personas found in OBSIDIAN_VAULT_PATH/personas/brand")
+        err_console.print("[red]Error:[/red] No marketing personas found in OBSIDIAN_VAULT_PATH/personas/Brand")
         raise typer.Exit(1)
         
     if verbose:
