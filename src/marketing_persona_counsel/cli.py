@@ -1,10 +1,13 @@
-from local_first_common.config import get_setting
 import asyncio
 import os
 from pathlib import Path
 from typing import Annotated, Optional
 
 import typer
+from rich.console import Console
+from rich.table import Table
+from rich.panel import Panel
+
 from local_first_common.cli import (
     init_config_option,
     dry_run_option,
@@ -14,55 +17,49 @@ from local_first_common.cli import (
 from local_first_common.tracking import register_tool, track_llm_run
 from local_first_common.ingestion import ingest_any
 from local_first_common.personas import list_personas
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
-
 from local_first_common.pydantic_ai_utils import build_model, PROVIDER_DEFAULTS, VALID_PROVIDERS
+
 from .orchestrator import run_council
 from .persistence import save_council_result
 
-_TOOL = register_tool("marketing-persona-counsel")
 TOOL_NAME = "marketing-persona-counsel"
 DEFAULTS = {"provider": "ollama", "model": "llama3"}
+_TOOL = register_tool("marketing-persona-counsel")
+
 app = typer.Typer(help="Run a blog post through a council of marketing personas.")
 console = Console()
 err_console = Console(stderr=True)
-
-
 @app.command()
 def main(
-    source: Annotated[
-        Optional[str],
-        typer.Argument(help="URL or local path to a blog post markdown file."),
-    ] = None,
-    provider: Annotated[
-        str,
-        typer.Option(
-            "--provider",
-            "-p",
-            help=f"LLM provider. Choices: {', '.join(VALID_PROVIDERS)}",
-        ),
-    ] = os.environ.get("MODEL_PROVIDER", "ollama"),
-    model: Annotated[
-        Optional[str],
-        typer.Option("--model", "-m", help="Override the provider's default model."),
-    ] = None,
-    vault: Annotated[
-        Optional[Path],
-        typer.Option("--vault", help="Override the Obsidian vault path."),
-    ] = None,
-    dry_run: bool = dry_run_option(),
-    no_llm: bool = no_llm_option(),
-    concurrency: Annotated[
-        int,
-        typer.Option("--concurrency", "-c", help="Max parallel API calls."),
-    ] = 3,
+    source: Optional[str] = typer.Argument(
+        None,
+        help="URL or local path to a blog post markdown file.",
+    ),
+    provider: str = typer.Option(
+        os.environ.get("MODEL_PROVIDER", "ollama"),
+        "--provider",
+        "-p",
+        help=f"LLM provider. Choices: {', '.join(VALID_PROVIDERS)}",
+    ),
+    model: Optional[str] = typer.Option(
+        None, "--model", "-m", help="Override the provider's default model."
+    ),
+    vault: Optional[Path] = typer.Option(
+        None, "--vault", help="Override the Obsidian vault path."
+    ),
+    dry_run: Annotated[bool, dry_run_option()] = False,
+    no_llm: Annotated[bool, no_llm_option()] = False,
+    concurrency: int = typer.Option(
+        3, "--concurrency", "-c", help="Max parallel API calls."
+    ),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
-    list_personas_flag: bool = typer.Option(False, "--list-personas", help="List available marketing personas."),
+    list_personas_flag: bool = typer.Option(
+        False, "--list-personas", help="List available marketing personas."
+    ),
+    init_config: Annotated[bool, init_config_option(TOOL_NAME, DEFAULTS)] = False,
 ) -> None:
     """Evaluate a blog post using marketing persona agents."""
-    
+
     # Handle --list-personas
     if list_personas_flag:
         personas = list_personas("Brand", vault_path=vault)
@@ -74,6 +71,9 @@ def main(
             console.print(f"  [cyan]{p.name}[/cyan] ({p.archetype})")
         console.print()
         raise typer.Exit()
+
+    # 3. Resolve Model
+    actual_provider = "mock" if no_llm else provider
 
     if source is None:
         err_console.print("[red]Error:[/red] Missing argument 'SOURCE'.")

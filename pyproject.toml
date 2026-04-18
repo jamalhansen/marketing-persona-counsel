@@ -17,6 +17,7 @@ dependencies = [
     "markdown",
     "local-first-common",
     "sqlmodel",
+    "toml>=0.10.2",
 ]
 
 [dependency-groups]
@@ -27,7 +28,7 @@ dev = [
 ]
 
 [tool.uv.sources]
-local-first-common = { git = "https://github.com/jamalhansen/local-first-common.git", branch = "main" }
+local-first-common = {path = "../local-first-common", editable = true}
 
 [build-system]
 requires = ["hatchling"]
