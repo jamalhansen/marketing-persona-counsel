@@ -1,3 +1,4 @@
+from local_first_common.config import get_setting
 import asyncio
 import os
 from pathlib import Path
@@ -5,6 +6,7 @@ from typing import Annotated, Optional
 
 import typer
 from local_first_common.cli import (
+    init_config_option,
     dry_run_option,
     no_llm_option,
     resolve_dry_run,
@@ -21,6 +23,8 @@ from .orchestrator import run_council
 from .persistence import save_council_result
 
 _TOOL = register_tool("marketing-persona-counsel")
+TOOL_NAME = "marketing-persona-counsel"
+DEFAULTS = {"provider": "ollama", "model": "llama3"}
 app = typer.Typer(help="Run a blog post through a council of marketing personas.")
 console = Console()
 err_console = Console(stderr=True)
