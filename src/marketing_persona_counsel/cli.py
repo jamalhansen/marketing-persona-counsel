@@ -17,7 +17,11 @@ from local_first_common.cli import (
 from local_first_common.tracking import register_tool, track_llm_run
 from local_first_common.ingestion import ingest_any
 from local_first_common.personas import list_personas
-from local_first_common.pydantic_ai_utils import build_model, PROVIDER_DEFAULTS, VALID_PROVIDERS
+from local_first_common.pydantic_ai_utils import (
+    build_model,
+    PROVIDER_DEFAULTS,
+    VALID_PROVIDERS,
+)
 
 from .orchestrator import run_council
 from .persistence import save_council_result
@@ -29,6 +33,52 @@ _TOOL = register_tool("marketing-persona-counsel")
 app = typer.Typer(help="Run a blog post through a council of marketing personas.")
 console = Console()
 err_console = Console(stderr=True)
+
+
+class MarketingPersonaCounselError(Exception):
+    """Base error for strict marketing-persona-counsel operations."""
+
+
+class ContentIngestionError(MarketingPersonaCounselError):
+    """Raised when source content cannot be ingested."""
+
+
+class ModelBuildError(MarketingPersonaCounselError):
+    """Raised when provider/model cannot be initialized."""
+
+
+class CouncilExecutionError(MarketingPersonaCounselError):
+    """Raised when council execution fails."""
+
+
+def ingest_content_or_raise(source: str):
+    """Ingest source content and raise typed error on failure."""
+    try:
+        return ingest_any(source, tool=_TOOL)
+    except Exception as e:  # noqa: BLE001
+        raise ContentIngestionError(str(e)) from e
+
+
+def build_pai_model_or_raise(provider: str, model: Optional[str]):
+    """Build pydantic-ai model and raise typed error on failure."""
+    try:
+        return build_model(provider, model)
+    except Exception as e:  # noqa: BLE001
+        raise ModelBuildError(str(e)) from e
+
+
+def run_council_or_raise(
+    personas, content: str, title: str, source: str, pai_model, concurrency: int
+):
+    """Run council and raise typed error on failure."""
+    try:
+        return asyncio.run(
+            run_council(personas, content, title, source, pai_model, concurrency)
+        )
+    except Exception as e:  # noqa: BLE001
+        raise CouncilExecutionError(str(e)) from e
+
+
 @app.command()
 def main(
     source: Optional[str] = typer.Argument(
@@ -64,7 +114,9 @@ def main(
     if list_personas_flag:
         personas = list_personas("Brand", vault_path=vault)
         if not personas:
-            err_console.print("[yellow]No marketing personas found. Check OBSIDIAN_VAULT_PATH/personas/Brand[/yellow]")
+            err_console.print(
+                "[yellow]No marketing personas found. Check OBSIDIAN_VAULT_PATH/personas/Brand[/yellow]"
+            )
             raise typer.Exit(1)
         console.print("\n[bold]Available Marketing Personas:[/bold]\n")
         for p in personas:
@@ -80,43 +132,55 @@ def main(
         raise typer.Exit(1)
 
     dry_run = resolve_dry_run(dry_run, no_llm)
-    
+
     # 1. Load Personas
     personas = list_personas("Brand", vault_path=vault)
     if not personas:
-        err_console.print("[red]Error:[/red] No marketing personas found in OBSIDIAN_VAULT_PATH/personas/Brand")
+        err_console.print(
+            "[red]Error:[/red] No marketing personas found in OBSIDIAN_VAULT_PATH/personas/Brand"
+        )
         raise typer.Exit(1)
-        
+
     if verbose:
-        console.print(f"[dim]Loaded {len(personas)} personas: {', '.join(p.name for p in personas)}[/dim]")
+        console.print(
+            f"[dim]Loaded {len(personas)} personas: {', '.join(p.name for p in personas)}[/dim]"
+        )
 
     # 2. Ingest Content
     try:
-        title, content = ingest_any(source, tool=_TOOL)
-    except Exception as e:
+        title, content = ingest_content_or_raise(source)
+    except ContentIngestionError as e:
         err_console.print(f"[red]Failed to ingest content:[/red] {e}")
         raise typer.Exit(1)
 
     console.print(f"[bold]Evaluating:[/bold] [cyan]{title}[/cyan]")
-    
+
     # 3. Resolve Model
     actual_provider = "mock" if no_llm else provider
     actual_model = "test-model" if no_llm else model
-    
+
     try:
-        pai_model = build_model(actual_provider, actual_model)
-    except Exception as e:
+        pai_model = build_pai_model_or_raise(actual_provider, actual_model)
+    except ModelBuildError as e:
         err_console.print(f"[red]Error building model:[/red] {e}")
         raise typer.Exit(1)
 
     model_name = actual_model or PROVIDER_DEFAULTS.get(actual_provider, "unknown")
 
     # 4. Run Council
-    with track_llm_run("marketing-persona-counsel", f"{provider}:{model_name}", source_location=source) as run:
-        result = asyncio.run(run_council(
-            personas, content, title, source, pai_model, concurrency
-        ))
-        run.track(result, item_count=len(personas))
+    try:
+        with track_llm_run(
+            "marketing-persona-counsel",
+            f"{provider}:{model_name}",
+            source_location=source,
+        ) as run:
+            result = run_council_or_raise(
+                personas, content, title, source, pai_model, concurrency
+            )
+            run.track(result, item_count=len(personas))
+    except CouncilExecutionError as e:
+        err_console.print(f"[red]Council run failed:[/red] {e}")
+        raise typer.Exit(1)
 
     # 5. Display Results
     table = Table(title=f"Council Evaluation: {title}")
@@ -126,7 +190,7 @@ def main(
     table.add_column("Engage", justify="right")
     table.add_column("Friend", justify="right")
     table.add_column("Share", justify="right")
-    
+
     for e in result.evaluations:
         table.add_row(
             e.persona_name,
@@ -134,22 +198,28 @@ def main(
             str(e.interest_score),
             str(e.engagement_score),
             str(e.friendliness_score),
-            str(e.shareability_score)
+            str(e.shareability_score),
         )
-        
+
     console.print(table)
-    
-    console.print(f"\n[bold]Averages:[/bold] Interest: {result.average_interest:.1f} | Engagement: {result.average_engagement:.1f}")
-    
+
+    console.print(
+        f"\n[bold]Averages:[/bold] Interest: {result.average_interest:.1f} | Engagement: {result.average_engagement:.1f}"
+    )
+
     for e in result.evaluations:
         with console.status(f"Tips from {e.persona_name}..."):
-            console.print(Panel(
-                "[bold]Outstanding Questions:[/bold]\n- " + "\n- ".join(e.outstanding_questions) + 
-                "\n\n[bold]Tips to Improve:[/bold]\n- " + "\n- ".join(e.tips_to_improve) +
-                f"\n\n[italic]\"{e.narrative}\"[/italic]",
-                title=f"Feedback: {e.persona_name}",
-                expand=False
-            ))
+            console.print(
+                Panel(
+                    "[bold]Outstanding Questions:[/bold]\n- "
+                    + "\n- ".join(e.outstanding_questions)
+                    + "\n\n[bold]Tips to Improve:[/bold]\n- "
+                    + "\n- ".join(e.tips_to_improve)
+                    + f'\n\n[italic]"{e.narrative}"[/italic]',
+                    title=f"Feedback: {e.persona_name}",
+                    expand=False,
+                )
+            )
 
     # 6. Persistence
     if not dry_run:
