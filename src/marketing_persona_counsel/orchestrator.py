@@ -3,6 +3,11 @@ from typing import Any
 from pydantic_ai import Agent
 from .models import PersonaEvaluation, CouncilResult
 from local_first_common.personas import ObsidianPersona
+from local_first_common.tracking import track_llm_run
+
+
+def _model_spec(model: Any) -> str:
+    return getattr(model, "model_name", None) or getattr(model, "model", None) or str(model)
 
 
 async def evaluate_post(
@@ -24,7 +29,14 @@ async def evaluate_post(
         ),
     )
     
-    result = await agent.run(content)
+    with track_llm_run(
+        "marketing-persona-counsel",
+        _model_spec(model),
+        source_location=f"persona:{persona.name}",
+    ) as run:
+        result = await agent.run(content)
+        run.track(result, item_count=1)
+
     # Ensure the persona name is correctly set in the result
     evaluation = result.output
     evaluation.persona_name = persona.name

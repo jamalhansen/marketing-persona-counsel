@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 from pathlib import Path
 from typing import Annotated, Optional
@@ -14,6 +15,7 @@ from local_first_common.cli import (
     no_llm_option,
     resolve_dry_run,
 )
+from local_first_common.logging import setup_logging
 from local_first_common.tracking import register_tool, track_llm_run
 from local_first_common.ingestion import ingest_any
 from local_first_common.personas import list_personas
@@ -109,6 +111,8 @@ def main(
     init_config: Annotated[bool, init_config_option(TOOL_NAME, DEFAULTS)] = False,
 ) -> None:
     """Evaluate a blog post using marketing persona agents."""
+    log_level = logging.DEBUG if verbose else logging.WARNING
+    setup_logging(level=log_level, tool_name=TOOL_NAME, persist_warnings=True)
 
     # Handle --list-personas
     if list_personas_flag:
