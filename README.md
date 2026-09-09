@@ -27,7 +27,8 @@ Standard flags supported: `--dry-run`, `--no-llm`, `--provider`, `--model`.
 ```
 marketing-persona-counsel/
 ├── src/marketing_persona_counsel/
-│   ├── logic.py         # Core agent logic
+│   ├── cli.py           # Typer CLI entry point
+│   ├── core.py          # Core agent logic and orchestration
 │   ├── models.py        # SQLModel and Pydantic models
 │   ├── ingestion.py     # Content ingestion from URLs/files
 │   └── ...
