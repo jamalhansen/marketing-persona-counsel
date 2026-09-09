@@ -61,10 +61,12 @@ def ingest_content_or_raise(source: str):
         raise ContentIngestionError(str(e)) from e
 
 
-def build_pai_model_or_raise(provider: str, model: Optional[str]):
+def build_pai_model_or_raise(
+    provider: str, model: Optional[str], tier: Optional[str] = None
+):
     """Build pydantic-ai model and raise typed error on failure."""
     try:
-        return build_model(provider, model)
+        return build_model(provider, model, tier=tier)
     except Exception as e:  # noqa: BLE001
         raise ModelBuildError(str(e)) from e
 
@@ -96,6 +98,10 @@ def main(
     model: Optional[str] = typer.Option(
         None, "--model", "-m", help="Override the provider's default model."
     ),
+    tier: Annotated[
+        str,
+        typer.Option("--tier", "-t", help="Model tier ('reasoning' or 'fast'). Defaults to 'reasoning'."),
+    ] = "reasoning",
     vault: Optional[Path] = typer.Option(
         None, "--vault", help="Override the Obsidian vault path."
     ),
@@ -164,12 +170,18 @@ def main(
     actual_model = "test-model" if no_llm else model
 
     try:
-        pai_model = build_pai_model_or_raise(actual_provider, actual_model)
+        pai_model = build_pai_model_or_raise(
+            actual_provider, actual_model, tier=tier
+        )
     except ModelBuildError as e:
         err_console.print(f"[red]Error building model:[/red] {e}")
         raise typer.Exit(1)
 
-    model_name = actual_model or PROVIDER_DEFAULTS.get(actual_provider, "unknown")
+    model_name = (
+        getattr(pai_model, "model_name", None)
+        or actual_model
+        or PROVIDER_DEFAULTS.get(actual_provider, "unknown")
+    )
 
     # 4. Run Council
     try:
