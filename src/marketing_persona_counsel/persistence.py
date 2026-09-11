@@ -1,6 +1,8 @@
 from pathlib import Path
+
 from local_first_common.db import CONTENT_QUALITY_DB_PATH
 from sqlmodel import Session, SQLModel, create_engine, select
+
 from .models import CouncilResult, EvaluationRecord
 
 DEFAULT_DB_PATH = CONTENT_QUALITY_DB_PATH

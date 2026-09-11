@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import Optional
+
 from pydantic import BaseModel, Field
-from sqlmodel import SQLModel, Field as SQLField
+from sqlmodel import Field as SQLField
+from sqlmodel import SQLModel
 
 
 class PersonaEvaluation(BaseModel):
@@ -40,7 +41,7 @@ class CouncilResult(BaseModel):
 class EvaluationRecord(SQLModel, table=True):
     """Database record for persistence in SQLite."""
     
-    id: Optional[int] = SQLField(default=None, primary_key=True)
+    id: int | None = SQLField(default=None, primary_key=True)
     timestamp: datetime = SQLField(default_factory=datetime.now)
     source_title: str
     source_location: str

@@ -2,28 +2,27 @@ import asyncio
 import logging
 import os
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
-
 from local_first_common.cli import (
-    init_config_option,
     dry_run_option,
+    init_config_option,
     no_llm_option,
     resolve_dry_run,
 )
-from local_first_common.logging import setup_logging
-from local_first_common.tracking import register_tool, track_llm_run
 from local_first_common.ingestion import ingest_any
+from local_first_common.logging import setup_logging
 from local_first_common.personas import list_personas
 from local_first_common.pydantic_ai_utils import (
-    build_model,
     PROVIDER_DEFAULTS,
     VALID_PROVIDERS,
+    build_model,
 )
+from local_first_common.tracking import register_tool, track_llm_run
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 
 from .orchestrator import run_council
 from .persistence import save_council_result
@@ -57,17 +56,17 @@ def ingest_content_or_raise(source: str):
     """Ingest source content and raise typed error on failure."""
     try:
         return ingest_any(source, tool=_TOOL)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise ContentIngestionError(str(e)) from e
 
 
 def build_pai_model_or_raise(
-    provider: str, model: Optional[str], tier: Optional[str] = None
+    provider: str, model: str | None, tier: str | None = None
 ):
     """Build pydantic-ai model and raise typed error on failure."""
     try:
         return build_model(provider, model, tier=tier)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise ModelBuildError(str(e)) from e
 
 
@@ -79,13 +78,13 @@ def run_council_or_raise(
         return asyncio.run(
             run_council(personas, content, title, source, pai_model, concurrency)
         )
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise CouncilExecutionError(str(e)) from e
 
 
 @app.command()
 def main(
-    source: Optional[str] = typer.Argument(
+    source: str | None = typer.Argument(
         None,
         help="URL or local path to a blog post markdown file.",
     ),
@@ -95,16 +94,16 @@ def main(
         "-p",
         help=f"LLM provider. Choices: {', '.join(VALID_PROVIDERS)}",
     ),
-    model: Optional[str] = typer.Option(
+    model: str | None = typer.Option(
         None, "--model", "-m", help="Override the provider's default model."
     ),
     tier: Annotated[
         str,
         typer.Option("--tier", "-t", help="Model tier ('reasoning' or 'fast'). Defaults to 'reasoning'."),
     ] = "reasoning",
-    vault: Optional[Path] = typer.Option(
-        None, "--vault", help="Override the Obsidian vault path."
-    ),
+    vault: Annotated[
+        Path | None, typer.Option("--vault", help="Override the Obsidian vault path.")
+    ] = None,
     dry_run: Annotated[bool, dry_run_option()] = False,
     no_llm: Annotated[bool, no_llm_option()] = False,
     concurrency: int = typer.Option(

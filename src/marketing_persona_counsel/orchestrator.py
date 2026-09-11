@@ -1,9 +1,11 @@
 import asyncio
 from typing import Any
-from pydantic_ai import Agent
-from .models import PersonaEvaluation, CouncilResult
+
 from local_first_common.personas import ObsidianPersona
 from local_first_common.tracking import track_llm_run
+from pydantic_ai import Agent
+
+from .models import CouncilResult, PersonaEvaluation
 
 
 def _model_spec(model: Any) -> str:

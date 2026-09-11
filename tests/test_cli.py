@@ -57,24 +57,24 @@ def test_ingest_content_or_raise_wraps_errors():
     with patch(
         "marketing_persona_counsel.cli.ingest_any",
         side_effect=RuntimeError("bad source"),
-    ):
-        with pytest.raises(ContentIngestionError, match="bad source"):
-            ingest_content_or_raise("https://example.com")
+    ), pytest.raises(ContentIngestionError, match="bad source"):
+        ingest_content_or_raise("https://example.com")
 
 
 def test_build_pai_model_or_raise_wraps_errors():
     with patch(
         "marketing_persona_counsel.cli.build_model",
         side_effect=RuntimeError("bad model"),
-    ):
-        with pytest.raises(ModelBuildError, match="bad model"):
-            build_pai_model_or_raise("ollama", None)
+    ), pytest.raises(ModelBuildError, match="bad model"):
+        build_pai_model_or_raise("ollama", None)
 
 
 def test_run_council_or_raise_wraps_errors():
     async def _boom(*args, **kwargs):
         raise RuntimeError("council failed")
 
-    with patch("marketing_persona_counsel.cli.run_council", side_effect=_boom):
-        with pytest.raises(CouncilExecutionError, match="council failed"):
-            run_council_or_raise([], "content", "title", "source", object(), 1)
+    with (
+        patch("marketing_persona_counsel.cli.run_council", side_effect=_boom),
+        pytest.raises(CouncilExecutionError, match="council failed"),
+    ):
+        run_council_or_raise([], "content", "title", "source", object(), 1)
