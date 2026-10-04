@@ -160,7 +160,7 @@ def main(
         title, content = ingest_content_or_raise(source)
     except ContentIngestionError as e:
         err_console.print(f"[red]Failed to ingest content:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     console.print(f"[bold]Evaluating:[/bold] [cyan]{title}[/cyan]")
 
@@ -174,7 +174,7 @@ def main(
         )
     except ModelBuildError as e:
         err_console.print(f"[red]Error building model:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     model_name = (
         getattr(pai_model, "model_name", None)
@@ -195,7 +195,7 @@ def main(
             run.track(result, item_count=len(personas))
     except CouncilExecutionError as e:
         err_console.print(f"[red]Council run failed:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     # 5. Display Results
     table = Table(title=f"Council Evaluation: {title}")
