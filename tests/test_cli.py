@@ -32,7 +32,7 @@ def test_list_personas_empty_vault(tmp_path):
 
 def test_cli_no_llm_markdown(tmp_path):
     vault = tmp_path / "vault"
-    brand_dir = vault / "personas" / "brand"
+    brand_dir = vault / "personas" / "Brand"
     brand_dir.mkdir(parents=True)
 
     persona_file = brand_dir / "Patty.md"
