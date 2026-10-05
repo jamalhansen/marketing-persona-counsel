@@ -60,9 +60,7 @@ def ingest_content_or_raise(source: str):
         raise ContentIngestionError(str(e)) from e
 
 
-def build_pai_model_or_raise(
-    provider: str, model: str | None, tier: str | None = None
-):
+def build_pai_model_or_raise(provider: str, model: str | None, tier: str | None = None):
     """Build pydantic-ai model and raise typed error on failure."""
     try:
         return build_model(provider, model, tier=tier)
@@ -70,14 +68,10 @@ def build_pai_model_or_raise(
         raise ModelBuildError(str(e)) from e
 
 
-def run_council_or_raise(
-    personas, content: str, title: str, source: str, pai_model, concurrency: int
-):
+def run_council_or_raise(personas, content: str, title: str, source: str, pai_model, concurrency: int):
     """Run council and raise typed error on failure."""
     try:
-        return asyncio.run(
-            run_council(personas, content, title, source, pai_model, concurrency)
-        )
+        return asyncio.run(run_council(personas, content, title, source, pai_model, concurrency))
     except Exception as e:
         raise CouncilExecutionError(str(e)) from e
 
@@ -94,25 +88,17 @@ def main(
         "-p",
         help=f"LLM provider. Choices: {', '.join(VALID_PROVIDERS)}",
     ),
-    model: str | None = typer.Option(
-        None, "--model", "-m", help="Override the provider's default model."
-    ),
+    model: str | None = typer.Option(None, "--model", "-m", help="Override the provider's default model."),
     tier: Annotated[
         str,
         typer.Option("--tier", "-t", help="Model tier ('reasoning' or 'fast'). Defaults to 'reasoning'."),
     ] = "reasoning",
-    vault: Annotated[
-        Path | None, typer.Option("--vault", help="Override the Obsidian vault path.")
-    ] = None,
+    vault: Annotated[Path | None, typer.Option("--vault", help="Override the Obsidian vault path.")] = None,
     dry_run: Annotated[bool, dry_run_option()] = False,
     no_llm: Annotated[bool, no_llm_option()] = False,
-    concurrency: int = typer.Option(
-        3, "--concurrency", "-c", help="Max parallel API calls."
-    ),
+    concurrency: int = typer.Option(3, "--concurrency", "-c", help="Max parallel API calls."),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
-    list_personas_flag: bool = typer.Option(
-        False, "--list-personas", help="List available marketing personas."
-    ),
+    list_personas_flag: bool = typer.Option(False, "--list-personas", help="List available marketing personas."),
     init_config: Annotated[bool, init_config_option(TOOL_NAME, DEFAULTS)] = False,
 ) -> None:
     """Evaluate a blog post using marketing persona agents."""
@@ -123,9 +109,7 @@ def main(
     if list_personas_flag:
         personas = list_personas("Brand", vault_path=vault)
         if not personas:
-            err_console.print(
-                "[yellow]No marketing personas found. Check OBSIDIAN_VAULT_PATH/personas/Brand[/yellow]"
-            )
+            err_console.print("[yellow]No marketing personas found. Check OBSIDIAN_VAULT_PATH/personas/Brand[/yellow]")
             raise typer.Exit(1)
         console.print("\n[bold]Available Marketing Personas:[/bold]\n")
         for p in personas:
@@ -145,15 +129,11 @@ def main(
     # 1. Load Personas
     personas = list_personas("Brand", vault_path=vault)
     if not personas:
-        err_console.print(
-            "[red]Error:[/red] No marketing personas found in OBSIDIAN_VAULT_PATH/personas/Brand"
-        )
+        err_console.print("[red]Error:[/red] No marketing personas found in OBSIDIAN_VAULT_PATH/personas/Brand")
         raise typer.Exit(1)
 
     if verbose:
-        console.print(
-            f"[dim]Loaded {len(personas)} personas: {', '.join(p.name for p in personas)}[/dim]"
-        )
+        console.print(f"[dim]Loaded {len(personas)} personas: {', '.join(p.name for p in personas)}[/dim]")
 
     # 2. Ingest Content
     try:
@@ -169,17 +149,13 @@ def main(
     actual_model = "test-model" if no_llm else model
 
     try:
-        pai_model = build_pai_model_or_raise(
-            actual_provider, actual_model, tier=tier
-        )
+        pai_model = build_pai_model_or_raise(actual_provider, actual_model, tier=tier)
     except ModelBuildError as e:
         err_console.print(f"[red]Error building model:[/red] {e}")
         raise typer.Exit(1) from None
 
     model_name = (
-        getattr(pai_model, "model_name", None)
-        or actual_model
-        or PROVIDER_DEFAULTS.get(actual_provider, "unknown")
+        getattr(pai_model, "model_name", None) or actual_model or PROVIDER_DEFAULTS.get(actual_provider, "unknown")
     )
 
     # 4. Run Council
@@ -189,9 +165,7 @@ def main(
             f"{provider}:{model_name}",
             source_location=source,
         ) as run:
-            result = run_council_or_raise(
-                personas, content, title, source, pai_model, concurrency
-            )
+            result = run_council_or_raise(personas, content, title, source, pai_model, concurrency)
             run.track(result, item_count=len(personas))
     except CouncilExecutionError as e:
         err_console.print(f"[red]Council run failed:[/red] {e}")

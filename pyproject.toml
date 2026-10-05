@@ -39,3 +39,6 @@ packages = ["src/marketing_persona_counsel"]
 
 [project.scripts]
 marketing-persona-counsel = "marketing_persona_counsel.cli:app"
+
+[tool.ruff]
+line-length = 120

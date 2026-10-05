@@ -25,9 +25,7 @@ def test_list_personas_empty_vault(tmp_path):
     result = runner.invoke(app, ["--list-personas"], env=env)
     assert result.exit_code == 1
     # Check stderr if available, or try to find it in stdout if click handles it
-    assert "No marketing personas found" in (
-        result.stdout + (result.stderr if hasattr(result, "stderr") else "")
-    )
+    assert "No marketing personas found" in (result.stdout + (result.stderr if hasattr(result, "stderr") else ""))
 
 
 def test_cli_no_llm_markdown(tmp_path):
@@ -36,9 +34,7 @@ def test_cli_no_llm_markdown(tmp_path):
     brand_dir.mkdir(parents=True)
 
     persona_file = brand_dir / "Patty.md"
-    persona_file.write_text(
-        "# Patty\n**Archetype:** Dev\n## System Prompt Seed\n> Hi", encoding="utf-8"
-    )
+    persona_file.write_text("# Patty\n**Archetype:** Dev\n## System Prompt Seed\n> Hi", encoding="utf-8")
 
     post_file = tmp_path / "post.md"
     post_file.write_text("---\ntitle: Test\n---\nContent", encoding="utf-8")
@@ -54,18 +50,24 @@ def test_cli_no_llm_markdown(tmp_path):
 
 
 def test_ingest_content_or_raise_wraps_errors():
-    with patch(
-        "marketing_persona_counsel.cli.ingest_any",
-        side_effect=RuntimeError("bad source"),
-    ), pytest.raises(ContentIngestionError, match="bad source"):
+    with (
+        patch(
+            "marketing_persona_counsel.cli.ingest_any",
+            side_effect=RuntimeError("bad source"),
+        ),
+        pytest.raises(ContentIngestionError, match="bad source"),
+    ):
         ingest_content_or_raise("https://example.com")
 
 
 def test_build_pai_model_or_raise_wraps_errors():
-    with patch(
-        "marketing_persona_counsel.cli.build_model",
-        side_effect=RuntimeError("bad model"),
-    ), pytest.raises(ModelBuildError, match="bad model"):
+    with (
+        patch(
+            "marketing_persona_counsel.cli.build_model",
+            side_effect=RuntimeError("bad model"),
+        ),
+        pytest.raises(ModelBuildError, match="bad model"),
+    ):
         build_pai_model_or_raise("ollama", None)
 
 

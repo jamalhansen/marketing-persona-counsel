@@ -18,7 +18,7 @@ async def evaluate_post(
     model: Any,
 ) -> PersonaEvaluation:
     """Run a single persona's evaluation of the content."""
-    
+
     agent = Agent(
         model,
         output_type=PersonaEvaluation,
@@ -30,7 +30,7 @@ async def evaluate_post(
             "Be critical but constructive. Score 1-10 on the requested metrics."
         ),
     )
-    
+
     with track_llm_run(
         "marketing-persona-counsel",
         _model_spec(model),
@@ -54,16 +54,16 @@ async def run_council(
     concurrency: int = 3,
 ) -> CouncilResult:
     """Run all personas in parallel (with concurrency limit)."""
-    
+
     semaphore = asyncio.Semaphore(concurrency)
-    
+
     async def wrapped_eval(p: ObsidianPersona):
         async with semaphore:
             return await evaluate_post(p, content, model)
-            
+
     tasks = [wrapped_eval(p) for p in personas]
     evaluations = await asyncio.gather(*tasks)
-    
+
     return CouncilResult(
         source_title=title,
         source_location=location,
